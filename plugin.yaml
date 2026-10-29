@@ -5,12 +5,11 @@ author: "Cyberwall contributors"
 provides_hooks:
   - pre_tool_call_final
 config_schema:
-  type: object
-  properties:
-    policy_path:
-      type: string
-      description: Absolute or home-relative path to the Cyberwall YAML policy.
-    evidence_path:
-      type: string
-      description: Absolute or home-relative path to the local evidence database.
-  additionalProperties: false
+  policy_path:
+    type: str
+    default: ~/.config/cyberwall/policy.yaml
+    description: Absolute or home-relative path to the Cyberwall YAML policy.
+  evidence_path:
+    type: str
+    default: ~/.local/state/cyberwall/evidence.sqlite3
+    description: Absolute or home-relative path to the local evidence database.
