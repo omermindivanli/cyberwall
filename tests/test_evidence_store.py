@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 
 import pytest
 from pydantic import ValidationError
@@ -65,20 +66,51 @@ def test_tamper_detection_fails_after_row_edit(tmp_path) -> None:
 
 def test_concurrent_writers_keep_chain_valid(tmp_path) -> None:
     database = tmp_path / "evidence.db"
-    store = EvidenceStore(database)
+    stores = [EvidenceStore(database) for _ in range(8)]
+    barrier = Barrier(len(stores))
 
-    def append(index: int) -> str:
-        request = Request(tool="read_file", args={"path": f"/workspace/{index}.txt"})
-        return store.append(
-            request, decide(request, _policy()), policy_sha256="c" * 64, mode="enforce"
-        )
+    def append(worker: int) -> list[str]:
+        store = stores[worker]
+        barrier.wait()
+        event_ids = []
+        for index in range(8):
+            request = Request(tool="read_file", args={"path": f"/workspace/{worker}-{index}.txt"})
+            event_ids.append(
+                store.append(
+                    request, decide(request, _policy()), policy_sha256="c" * 64, mode="enforce"
+                )
+            )
+        return event_ids
 
-    with ThreadPoolExecutor(max_workers=8) as executor:
-        event_ids = list(executor.map(append, range(64)))
-    assert len(set(event_ids)) == 64
-    assert store.verify()
-    assert len(store.events()) == 64
-    store.close()
+    try:
+        with ThreadPoolExecutor(max_workers=len(stores)) as executor:
+            event_ids = [
+                event
+                for worker_ids in executor.map(append, range(len(stores)))
+                for event in worker_ids
+            ]
+        assert len(set(event_ids)) == 64
+        for store in stores:
+            assert store.verify()
+            assert len(store.events()) == 64
+    finally:
+        for store in stores:
+            store.close()
+
+
+def test_tamper_detection_fails_after_internal_row_deletion(tmp_path) -> None:
+    database = tmp_path / "evidence.db"
+    with EvidenceStore(database) as store:
+        for index in range(3):
+            request = Request(tool="read_file", args={"path": f"/workspace/{index}.txt"})
+            store.append(
+                request, decide(request, _policy()), policy_sha256="f" * 64, mode="enforce"
+            )
+        assert store.verify()
+    with sqlite3.connect(database) as connection:
+        connection.execute("DELETE FROM events WHERE seq = 2")
+    with EvidenceStore(database) as store:
+        assert not store.verify()
 
 
 def test_evidence_failure_policy_blocks_enforce_and_allows_audit(tmp_path, monkeypatch) -> None:

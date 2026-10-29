@@ -109,7 +109,7 @@ class EvidenceStore:
         return event["event_id"]
 
     def verify(self) -> bool:
-        """Recompute every row link and detect edits, deletion, or reordering."""
+        """Recompute retained row links; a local chain cannot prove its own final row exists."""
         with self._lock:
             rows = self._connection.execute(
                 "SELECT event_json, prev_hash, hash FROM events ORDER BY seq"

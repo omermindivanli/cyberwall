@@ -227,7 +227,7 @@ Event fields: `event_id`, `correlation_id`, `ts`, `session_id`, `task_id`, `inte
 
 Never stored: raw prompts, file contents, tool results, secrets, chain-of-thought. A CI test plants a canary secret in every input position and asserts it appears nowhere on disk.
 
-The log is **tamper-evident, not tamper-proof**. Signed receipts are a later option.
+The log is **tamper-evident, not tamper-proof**. The local chain detects changed rows and broken links, but cannot detect removal of its newest rows without an external checkpoint. A privileged user can rewrite the database and chain. Signed receipts are a later option.
 
 ## 13. Threat model
 

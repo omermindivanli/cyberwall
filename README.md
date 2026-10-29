@@ -102,7 +102,7 @@ Security tools that hide their limits are worse than none. So:
 - **It is not a sandbox or runtime guard.** The current checkout cannot prevent an agent from executing a tool call.
 - **It cannot prove a page is "safe"** or prevent a manipulated agent from acting.
 - **Path normalization is lexical.** The standalone evaluator does not resolve symlinks or enforce filesystem access.
-- **Evidence is tamper-evident, not tamper-proof.** A privileged user able to rewrite the database can also rewrite its chain.
+- **Evidence is tamper-evident, not tamper-proof.** The local chain detects changed rows and broken links, but cannot detect removal of its newest rows without an external checkpoint. A privileged user can rewrite the database and chain.
 - **The Hermes adapter is not implemented.** Hook paths, plugin isolation, lifecycle, and fail-closed behavior remain unverified or unresolved as documented in the contract spike.
 
 ## Planned work
