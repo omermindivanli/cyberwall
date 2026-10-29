@@ -168,8 +168,6 @@ def append_with_failure_policy(
                 argv=decision.argv,
                 flags=tuple(sorted(set((*decision.flags, "GUARD_ERROR")))),
             )
-        if policy.on_evidence_failure == "allow":
-            return decision
         return Decision(
             decision=DecisionKind.DENY,
             rule_id="compiled-invariant",

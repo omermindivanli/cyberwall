@@ -110,7 +110,7 @@ Matching rules:
 version: 1
 mode: enforce                    # audit | enforce
 default: deny                    # only `deny` is valid in enforce mode
-on_evidence_failure: block       # block | allow  (enforce mode default: block)
+on_evidence_failure: block       # enforce mode requires block; audit mode records GUARD_ERROR
 
 variables:
   WORKSPACE: "~/work/agent-sandbox"
@@ -190,7 +190,7 @@ Detectors only ever **add restrictions**. A detector miss degrades to the baseli
 | Malformed request / unknown tool | **Block** | Allow + `would_block` |
 | Policy file invalid at startup | **Block all non-read tools**; loud startup error | Run with built-in strict defaults in audit; loud warning |
 | Policy file changed while running (hash mismatch) | **Lock down**: block all non-read tools; evidence | Warn + evidence |
-| Evidence store unwritable | per `on_evidence_failure` (default **block**) | Allow + stderr warning |
+| Evidence store unwritable | **Block**; `on_evidence_failure: allow` is invalid in enforce mode | Allow + `GUARD_ERROR` + stderr warning |
 | Plugin not loaded | *Cannot self-detect.* `cyberwall doctor` and `cyberwall run` (refuses to start Hermes unless the guard is verified loaded) | same |
 | Decision engine hang | N/A: pure function, no I/O, no user regexes, so bounded work | same |
 

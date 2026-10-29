@@ -4,6 +4,9 @@ import hashlib
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 
+import pytest
+from pydantic import ValidationError
+
 from cyberwall.core.evaluator import decide
 from cyberwall.core.models import Decision, DecisionKind, Policy, Request, ToolClass
 from cyberwall.evidence.store import EvidenceStore, append_with_failure_policy
@@ -97,11 +100,8 @@ def test_evidence_failure_policy_blocks_enforce_and_allows_audit(tmp_path, monke
     assert enforced.decision == DecisionKind.DENY
     assert enforced.reason_code == "EVIDENCE_FAILURE"
 
-    explicit_allow = Policy(version=1, on_evidence_failure="allow")
-    allowed_after_failure = append_with_failure_policy(
-        store, request, allowed, explicit_allow, policy_sha256="e" * 64
-    )
-    assert allowed_after_failure.decision == DecisionKind.ALLOW
+    with pytest.raises(ValidationError, match="must be block in enforce mode"):
+        Policy(version=1, on_evidence_failure="allow")
 
     audit = append_with_failure_policy(
         store, request, denied, Policy(version=1, mode="audit"), policy_sha256="e" * 64

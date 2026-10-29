@@ -6,7 +6,7 @@ import json
 from enum import StrEnum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class FrozenModel(BaseModel):
@@ -134,6 +134,12 @@ class Policy(FrozenModel):
         if value not in {"audit", "enforce"}:
             raise ValueError("mode must be audit or enforce")
         return value
+
+    @model_validator(mode="after")
+    def enforce_evidence_failure_blocks(self) -> Policy:
+        if self.mode == "enforce" and self.on_evidence_failure != "block":
+            raise ValueError("on_evidence_failure must be block in enforce mode")
+        return self
 
     @field_validator("default")
     @classmethod
