@@ -1,0 +1,268 @@
+{
+  "$defs": {
+    "Effect": {
+      "enum": [
+        "allow",
+        "deny",
+        "require_approval"
+      ],
+      "title": "Effect",
+      "type": "string"
+    },
+    "FlowPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "block_egress_when": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SessionFlag"
+          },
+          "title": "Block Egress When",
+          "type": "array"
+        },
+        "effect": {
+          "$ref": "#/$defs/Effect",
+          "default": "deny"
+        },
+        "egress_classes": {
+          "default": [
+            "network",
+            "exec"
+          ],
+          "items": {
+            "$ref": "#/$defs/ToolClass"
+          },
+          "title": "Egress Classes",
+          "type": "array"
+        }
+      },
+      "title": "FlowPolicy",
+      "type": "object"
+    },
+    "Rule": {
+      "additionalProperties": false,
+      "properties": {
+        "allow_shell_metacharacters": {
+          "default": false,
+          "title": "Allow Shell Metacharacters",
+          "type": "boolean"
+        },
+        "argument_patterns": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Argument Patterns",
+          "type": "array"
+        },
+        "effect": {
+          "$ref": "#/$defs/Effect"
+        },
+        "hosts": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Hosts",
+          "type": "array"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "paths": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Paths",
+          "type": "array"
+        },
+        "tool": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tool"
+        },
+        "unverified_args": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unverified Args"
+        },
+        "when": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuleWhen"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "effect"
+      ],
+      "title": "Rule",
+      "type": "object"
+    },
+    "RuleWhen": {
+      "additionalProperties": false,
+      "properties": {
+        "session_has": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SessionFlag"
+          },
+          "title": "Session Has",
+          "type": "array"
+        }
+      },
+      "title": "RuleWhen",
+      "type": "object"
+    },
+    "SessionFlag": {
+      "enum": [
+        "untrusted_content_seen",
+        "sensitive_data_read"
+      ],
+      "title": "SessionFlag",
+      "type": "string"
+    },
+    "ToolClass": {
+      "enum": [
+        "read",
+        "write",
+        "exec",
+        "network",
+        "memory",
+        "privileged",
+        "unknown"
+      ],
+      "title": "ToolClass",
+      "type": "string"
+    },
+    "ToolDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "class": {
+          "$ref": "#/$defs/ToolClass"
+        }
+      },
+      "required": [
+        "class"
+      ],
+      "title": "ToolDefinition",
+      "type": "object"
+    },
+    "UntrustedSources": {
+      "additionalProperties": false,
+      "properties": {
+        "classes": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ToolClass"
+          },
+          "title": "Classes",
+          "type": "array"
+        },
+        "paths": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Paths",
+          "type": "array"
+        }
+      },
+      "title": "UntrustedSources",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "default": {
+      "$ref": "#/$defs/Effect",
+      "default": "deny"
+    },
+    "flow": {
+      "$ref": "#/$defs/FlowPolicy"
+    },
+    "mode": {
+      "default": "enforce",
+      "title": "Mode",
+      "type": "string"
+    },
+    "on_evidence_failure": {
+      "default": "block",
+      "title": "On Evidence Failure",
+      "type": "string"
+    },
+    "rules": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Rule"
+      },
+      "title": "Rules",
+      "type": "array"
+    },
+    "sensitive_paths": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Sensitive Paths",
+      "type": "array"
+    },
+    "tools": {
+      "additionalProperties": {
+        "$ref": "#/$defs/ToolDefinition"
+      },
+      "default": {},
+      "type": "object"
+    },
+    "untrusted_sources": {
+      "$ref": "#/$defs/UntrustedSources"
+    },
+    "variables": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {},
+      "type": "object"
+    },
+    "version": {
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version"
+  ],
+  "title": "Policy",
+  "type": "object"
+}

@@ -1,0 +1,49 @@
+[importlinter]
+root_package = cyberwall
+package_root = src
+include_external_packages = True
+
+[importlinter:contract:1]
+name = core has no inward dependencies
+type = forbidden
+source_modules =
+    cyberwall.core
+forbidden_modules =
+    cyberwall.evidence
+    cyberwall.inventory
+    cyberwall.lab
+    cyberwall.adapters
+    cyberwall.cli
+
+[importlinter:contract:2]
+name = evidence depends only on core
+type = forbidden
+source_modules =
+    cyberwall.evidence
+forbidden_modules =
+    cyberwall.inventory
+    cyberwall.lab
+    cyberwall.adapters
+    cyberwall.cli
+
+[importlinter:contract:3]
+name = inventory and lab depend inward
+type = forbidden
+source_modules =
+    cyberwall.inventory
+    cyberwall.lab
+forbidden_modules =
+    cyberwall.adapters
+    cyberwall.cli
+
+[importlinter:contract:4]
+name = only the Hermes adapter may import Hermes
+type = forbidden
+source_modules =
+    cyberwall.core
+    cyberwall.evidence
+    cyberwall.inventory
+    cyberwall.lab
+    cyberwall.cli
+forbidden_modules =
+    hermes
