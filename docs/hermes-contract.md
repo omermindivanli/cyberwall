@@ -8,8 +8,9 @@ arguments Hermes is about to dispatch. It honors only `block`; approval and argu
 ignored. Cyberwall treats `DENY` and `REQUIRE_APPROVAL` as blocks because its human-only approval
 store and interface are not implemented yet.
 
-The upstream contract change is in the isolated Hermes worktree at commit
-`4b78de1c44` on branch `cyberwall-secure-args`. It has not been merged or released. The plugin
+The upstream contract change is proposed in [Hermes PR #146684](https://github.com/NousResearch/hermes-agent/pull/146684),
+branch `cyberwall-secure-args`, currently at commit
+`246165feb75c98a8c94d70c098d527eb7a77b17b`. It has not been merged or released. The plugin
 cannot be enabled safely on Hermes versions that do not implement `pre_tool_call_final`; catalog
 submission must wait for Hermes maintainers to accept and release that hook.
 
@@ -26,8 +27,8 @@ submission must wait for Hermes maintainers to accept and release that hook.
   execution.
 - The proposed final hook isolates the payload for each callback. Exceptions and timeouts produce
   a block, and wrapper-level dispatcher errors also block.
-- Focused upstream verification: `tests/hermes_cli/test_plugins.py` passed (89 tests); after adding
-  the handler-not-invoked regression, the focused policy tests passed (4 tests).
+- Focused upstream verification: `tests/hermes_cli/test_plugins.py` passed (91 tests), including
+  handler-not-invoked, per-callback argument isolation, and fail-closed timeout coverage.
 
 ## Not yet verified
 
