@@ -217,6 +217,7 @@
       "type": "string"
     },
     "on_evidence_failure": {
+      "const": "block",
       "default": "block",
       "title": "On Evidence Failure",
       "type": "string"

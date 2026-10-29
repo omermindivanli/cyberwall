@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import json
 from enum import StrEnum
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class FrozenModel(BaseModel):
@@ -103,7 +103,7 @@ class Policy(FrozenModel):
     version: int = Field(ge=1)
     mode: str = "enforce"
     default: Effect = Effect.DENY
-    on_evidence_failure: str = "block"
+    on_evidence_failure: Literal["block"] = "block"
     variables: tuple[tuple[str, str], ...] = ()
     tools: tuple[tuple[str, ToolDefinition], ...] = ()
     sensitive_paths: tuple[str, ...] = ()
@@ -121,25 +121,12 @@ class Policy(FrozenModel):
     def freeze_tools(cls, value: Any) -> Any:
         return tuple(sorted(value.items())) if isinstance(value, dict) else value
 
-    @field_validator("on_evidence_failure")
-    @classmethod
-    def valid_evidence_failure_mode(cls, value: str) -> str:
-        if value not in {"block", "allow"}:
-            raise ValueError("on_evidence_failure must be block or allow")
-        return value
-
     @field_validator("mode")
     @classmethod
     def valid_mode(cls, value: str) -> str:
         if value not in {"audit", "enforce"}:
             raise ValueError("mode must be audit or enforce")
         return value
-
-    @model_validator(mode="after")
-    def enforce_evidence_failure_blocks(self) -> Policy:
-        if self.mode == "enforce" and self.on_evidence_failure != "block":
-            raise ValueError("on_evidence_failure must be block in enforce mode")
-        return self
 
     @field_validator("default")
     @classmethod

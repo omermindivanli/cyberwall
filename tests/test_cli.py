@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from cyberwall.cli import main
 from cyberwall.core.models import Decision, DecisionKind, Request, ToolClass
@@ -34,6 +35,8 @@ def test_schema_command_prints_json_schema(capsys) -> None:
     assert main(["schema"]) == 0
     schema = json.loads(capsys.readouterr().out)
     assert schema["properties"]["tools"]["type"] == "object"
+    checked_in_schema = Path(__file__).parents[1] / "schemas" / "policy.schema.json"
+    assert json.loads(checked_in_schema.read_text(encoding="utf-8")) == schema
 
 
 def test_evidence_report_and_verify_commands_are_redacted(tmp_path, capsys) -> None:

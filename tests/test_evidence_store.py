@@ -133,7 +133,7 @@ def test_evidence_failure_policy_blocks_enforce_and_allows_audit(tmp_path, monke
     assert enforced.decision == DecisionKind.DENY
     assert enforced.reason_code == "EVIDENCE_FAILURE"
 
-    with pytest.raises(ValidationError, match="must be block in enforce mode"):
+    with pytest.raises(ValidationError, match="Input should be 'block'"):
         Policy(version=1, on_evidence_failure="allow")
 
     audit = append_with_failure_policy(
