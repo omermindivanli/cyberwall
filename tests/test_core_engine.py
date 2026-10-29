@@ -298,9 +298,36 @@ def test_path_and_host_selectors_need_matching_arguments() -> None:
     assert all(item.decision == DecisionKind.DENY for item in results)
 
 
-def test_rule_argument_pattern_matches_tool_name_and_rejects_other_name() -> None:
+def test_terminal_allowlist_matches_executable_and_each_argument() -> None:
+    rule = Rule(
+        id="terminal-echo",
+        effect=Effect.ALLOW,
+        tool="terminal",
+        executables=("echo",),
+        argument_patterns=("hello*",),
+    )
+    allowed = decide(
+        Request(tool="terminal", args={"command": "echo hello-world"}), policy((rule,))
+    )
+    blocked_executable = decide(
+        Request(tool="terminal", args={"command": "rm hello-world"}), policy((rule,))
+    )
+    blocked_argument = decide(
+        Request(tool="terminal", args={"command": "echo secret.txt"}), policy((rule,))
+    )
+    missing_command = decide(Request(tool="terminal", args={}), policy((rule,)))
+    assert allowed.decision == DecisionKind.ALLOW
+    assert blocked_executable.decision == DecisionKind.DENY
+    assert blocked_argument.decision == DecisionKind.DENY
+    assert missing_command.decision == DecisionKind.DENY
+
+
+def test_argument_patterns_cannot_approve_a_tool_by_name_alone() -> None:
     rule = Rule(id="terminal", effect=Effect.ALLOW, argument_patterns=("terminal",))
-    assert decide(Request(tool="terminal", args={}), policy((rule,))).decision == DecisionKind.ALLOW
+    assert (
+        decide(Request(tool="terminal", args={"command": "rm -rf /"}), policy((rule,))).decision
+        == DecisionKind.DENY
+    )
     assert decide(Request(tool="browser", args={}), policy((rule,))).decision == DecisionKind.DENY
 
 

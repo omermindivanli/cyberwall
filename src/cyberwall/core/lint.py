@@ -20,6 +20,7 @@ def _selector(rule: Rule) -> tuple[object, ...]:
         rule.tool,
         rule.paths,
         rule.hosts,
+        rule.executables,
         rule.when,
         rule.unverified_args,
         rule.argument_patterns,
@@ -33,13 +34,15 @@ def lint_policy(policy: Policy) -> tuple[LintIssue, ...]:
         if rule.effect == Effect.ALLOW:
             broad = any(pattern in {"**", "*", "/**"} for pattern in rule.paths)
             broad = broad or any(pattern == "*" for pattern in rule.hosts)
+            broad = broad or any(pattern in {"*", "**"} for pattern in rule.executables)
+            broad = broad or any(pattern in {"*", "**"} for pattern in rule.argument_patterns)
             if broad:
                 issues.append(
                     LintIssue(
                         "BROAD_ALLOW",
                         "warning",
                         rule.id,
-                        "allow rule has an unrestricted path or host glob",
+                        "allow rule has an unrestricted path, host, executable, or argument glob",
                     )
                 )
         selector = _selector(rule)

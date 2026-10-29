@@ -102,7 +102,7 @@ Matching rules:
 - `paths`: glob (`**` supported) against the *normalized absolute* path. **Every** path-bearing argument is checked, and one violating path denies the call.
 - `hosts`: exact, or `*.suffix`. IP-literal hosts match only explicit CIDR entries.
 - No regexes anywhere. A tool with arguments the engine can't extract is allowed only by an explicit `unverified_args: allow` on its rule, and the evidence event is tagged `ARGS_UNVERIFIED`.
-- `terminal`: v0.1 supports `deny` (default in `strict`) or an **argv allowlist**: parse with `shlex`, reject any shell metacharacter unless a rule opts in, match `argv[0]` basename and argument patterns, and deny a built-in list of exec-capable flags (e.g. `-exec`, `-c`, `--eval`). A denylist is **never** claimed to be a boundary. See §15.
+- `terminal`: v0.1 supports `deny` (default in `strict`) or an **argv allowlist**: parse with `shlex`, reject any shell metacharacter unless a rule opts in, match the `argv[0]` basename against `executables`, match every remaining token against `argument_patterns`, and deny a built-in list of exec-capable flags (e.g. `-exec`, `-c`, `--eval`). A denylist is **never** claimed to be a boundary. See §15.
 
 ## 6. Policy format (v1, draft)
 

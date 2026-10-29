@@ -82,6 +82,7 @@ class Rule(FrozenModel):
     tool: str | tuple[str, ...] | None = None
     paths: tuple[str, ...] = ()
     hosts: tuple[str, ...] = ()
+    executables: tuple[str, ...] = ()
     when: RuleWhen | None = None
     unverified_args: str | None = None
     allow_shell_metacharacters: bool = False

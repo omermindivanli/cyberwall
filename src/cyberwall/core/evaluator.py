@@ -14,8 +14,9 @@ from .models import (
     Rule,
     SessionState,
     ToolClass,
+    thaw_json,
 )
-from .normalize import normalize_path_pattern, normalize_request, path_glob_match
+from .normalize import COMMAND_KEYS, normalize_path_pattern, normalize_request, path_glob_match
 
 
 def _tool_matches(rule_tool: str | tuple[str, ...] | None, tool: str) -> bool:
@@ -49,6 +50,7 @@ def _rule_matches(
     request: Request,
     paths: tuple[str, ...],
     hosts: tuple[str, ...],
+    argv: tuple[str, ...],
     session: SessionState,
 ) -> bool:
     if not _tool_matches(rule.tool, request.tool):
@@ -67,12 +69,19 @@ def _rule_matches(
         outcomes = [any(_host_matches(pattern, host) for pattern in rule.hosts) for host in hosts]
         if not (any(outcomes) if rule.effect == Effect.DENY else all(outcomes)):
             return False
-    if rule.unverified_args == "allow" and not (paths or hosts):
-        return True
-    if rule.argument_patterns:
-        argv0 = request.tool
-        if not any(fnmatchcase(argv0, pattern) for pattern in rule.argument_patterns):
+    if rule.executables or rule.argument_patterns:
+        if not argv:
             return False
+        executable = argv[0].rsplit("/", 1)[-1]
+        if executable not in rule.executables:
+            return False
+        if any(
+            not any(fnmatchcase(argument, pattern) for pattern in rule.argument_patterns)
+            for argument in argv[1:]
+        ):
+            return False
+    if rule.unverified_args == "allow" and not (paths or hosts or rule.executables):
+        return True
     return True
 
 
@@ -151,7 +160,9 @@ def decide(request: Request, policy: Policy, session: SessionState | None = None
         )
 
     matching = [
-        rule for rule in policy.rules if _rule_matches(rule, request, paths, hosts, current_session)
+        rule
+        for rule in policy.rules
+        if _rule_matches(rule, request, paths, hosts, argv, current_session)
     ]
     matching.sort(key=lambda rule: rule.id)
     if "SHELL_METACHARACTER" in flags and not any(
@@ -184,7 +195,14 @@ def decide(request: Request, policy: Policy, session: SessionState | None = None
             Effect.ALLOW: DecisionKind.ALLOW,
         }[selected.effect]
         if not (paths or hosts) and request.args != "{}":
-            if selected.unverified_args != "allow":
+            args_object = thaw_json(request.args)
+            command_args_verified = (
+                bool(argv)
+                and bool(selected.executables)
+                and isinstance(args_object, dict)
+                and all(str(key).lower() in COMMAND_KEYS for key in args_object)
+            )
+            if not command_args_verified and selected.unverified_args != "allow":
                 result = DecisionKind.DENY
                 return _decision(
                     result,
@@ -197,7 +215,8 @@ def decide(request: Request, policy: Policy, session: SessionState | None = None
                     ("ARGS_UNVERIFIED",),
                     policy,
                 )
-            flags = tuple(sorted((*flags, "ARGS_UNVERIFIED")))
+            if not command_args_verified:
+                flags = tuple(sorted((*flags, "ARGS_UNVERIFIED")))
         return _decision(
             result,
             selected.id,

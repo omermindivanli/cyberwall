@@ -58,6 +58,14 @@
         "effect": {
           "$ref": "#/$defs/Effect"
         },
+        "executables": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Executables",
+          "type": "array"
+        },
         "hosts": {
           "default": [],
           "items": {
