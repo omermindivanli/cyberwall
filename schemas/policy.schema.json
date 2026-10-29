@@ -212,6 +212,38 @@
     }
   },
   "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "anyOf": [
+          {
+            "not": {
+              "required": [
+                "mode"
+              ]
+            }
+          },
+          {
+            "properties": {
+              "mode": {
+                "const": "enforce"
+              }
+            },
+            "required": [
+              "mode"
+            ]
+          }
+        ]
+      },
+      "then": {
+        "properties": {
+          "default": {
+            "const": "deny"
+          }
+        }
+      }
+    }
+  ],
   "properties": {
     "default": {
       "$ref": "#/$defs/Effect",
@@ -222,7 +254,10 @@
     },
     "mode": {
       "default": "enforce",
-      "title": "Mode",
+      "enum": [
+        "audit",
+        "enforce"
+      ],
       "type": "string"
     },
     "on_evidence_failure": {

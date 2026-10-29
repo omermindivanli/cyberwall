@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sqlite3
+import stat
 import threading
 from datetime import UTC, datetime
 from pathlib import Path
@@ -14,6 +16,32 @@ from uuid import uuid4
 from cyberwall.core.models import Decision, DecisionKind, Policy, Request
 
 ZERO_HASH = "0" * 64
+
+
+def _restrict_sqlite_file(path: str, *, create: bool = False) -> None:
+    if os.name != "posix" or path == ":memory:":
+        return
+    flags = os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
+    if create:
+        flags |= os.O_CREAT
+    try:
+        descriptor = os.open(path, flags, 0o600)
+    except FileNotFoundError:
+        if create:
+            raise
+        return
+    try:
+        if not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise ValueError("evidence database files must be regular files")
+        os.fchmod(descriptor, 0o600)
+    finally:
+        os.close(descriptor)
+
+
+def _restrict_sqlite_permissions(path: str, *, create_database: bool = False) -> None:
+    _restrict_sqlite_file(path, create=create_database)
+    for suffix in ("-wal", "-shm"):
+        _restrict_sqlite_file(path + suffix)
 
 
 def _canonical(value: dict[str, Any]) -> bytes:
@@ -68,6 +96,7 @@ class EvidenceStore:
     def __init__(self, path: str | Path) -> None:
         self.path = str(path)
         self._lock = threading.RLock()
+        _restrict_sqlite_permissions(self.path, create_database=True)
         self._connection = sqlite3.connect(self.path, timeout=30, check_same_thread=False)
         self._connection.execute("PRAGMA journal_mode=WAL")
         self._connection.execute("PRAGMA synchronous=FULL")
@@ -77,6 +106,7 @@ class EvidenceStore:
             "prev_hash TEXT NOT NULL, hash TEXT NOT NULL)"
         )
         self._connection.commit()
+        _restrict_sqlite_permissions(self.path)
 
     def append(
         self,
@@ -103,6 +133,7 @@ class EvidenceStore:
                     (encoded, previous, digest),
                 )
                 self._connection.commit()
+                _restrict_sqlite_permissions(self.path)
             except BaseException:
                 self._connection.rollback()
                 raise

@@ -33,6 +33,16 @@ HOST_KEYS = frozenset({"url", "uri", "host", "hostname", "endpoint", "website", 
 COMMAND_KEYS = frozenset({"command", "cmd", "script", "shell", "argv"})
 
 
+def _is_exec_capable_flag(argument: str) -> bool:
+    for flag in EXEC_FLAGS:
+        if argument == flag or argument.startswith(flag + "="):
+            return True
+        if len(flag) == 2 and flag.startswith("-") and not flag.startswith("--"):
+            if argument.startswith(flag) and len(argument) > len(flag):
+                return True
+    return False
+
+
 def _expand_path(path: str, policy: Policy) -> str:
     value = unicodedata.normalize("NFC", path)
     configured_variables = dict(policy.variables)
@@ -138,7 +148,7 @@ def normalize_request(
             argv = tuple(shlex.split(item, posix=True))
         except ValueError as error:
             raise ValueError("malformed command") from error
-        if any(arg in EXEC_FLAGS for arg in argv):
+        if any(_is_exec_capable_flag(arg) for arg in argv):
             flags.append("EXEC_CAPABLE_FLAG")
         commands.extend(argv)
     return paths, tuple(sorted(set(hosts))), tuple(commands), tuple(sorted(set(flags)))

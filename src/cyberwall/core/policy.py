@@ -43,6 +43,25 @@ def policy_json_schema() -> dict[str, Any]:
         "additionalProperties": {"$ref": "#/$defs/ToolDefinition"},
         "default": {},
     }
+    schema["properties"]["mode"] = {
+        "type": "string",
+        "enum": ["audit", "enforce"],
+        "default": "enforce",
+    }
+    schema["allOf"] = [
+        {
+            "if": {
+                "anyOf": [
+                    {"not": {"required": ["mode"]}},
+                    {
+                        "properties": {"mode": {"const": "enforce"}},
+                        "required": ["mode"],
+                    },
+                ]
+            },
+            "then": {"properties": {"default": {"const": "deny"}}},
+        }
+    ]
     return schema
 
 

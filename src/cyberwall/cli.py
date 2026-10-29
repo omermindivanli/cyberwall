@@ -61,6 +61,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             with EvidenceStore(args.database) as store:
                 if args.command == "report":
+                    if not store.verify():
+                        print(
+                            "cyberwall: evidence chain is INVALID; refusing to render report",
+                            file=sys.stderr,
+                        )
+                        return 1
                     events = store.events()
                     renderer = render_last if args.report_kind == "last" else render_summary
                     print(renderer(events, args.format))

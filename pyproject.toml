@@ -38,6 +38,8 @@ dev = [
   "coverage==7.6.10",
   "hypothesis==6.122.3",
   "import-linter==2.1",
+  # Validates that the published JSON Schema matches policy model acceptance.
+  "jsonschema==4.26.0",
   "mypy==1.14.1",
   "pre-commit==4.0.1",
   "pytest==8.3.4",

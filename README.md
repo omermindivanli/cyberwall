@@ -30,7 +30,7 @@ Agents can propose high-impact tool actions. This project explores deterministic
 |---|---|---|
 | 🛡️ | **Policy evaluator** | Local `cyberwall eval` checks one tool request against a deterministic policy. Default deny; unknown tools are denied unless explicitly allowed. |
 | 🧹 | **Policy lint** | `cyberwall policy lint` reports structurally broad allows and selector conflicts. |
-| 🧾 | **Evidence store** | SQLite WAL evidence with a hash chain, redacted path/host fingerprints, `cyberwall evidence verify`, and Markdown/JSON reports. |
+| 🧾 | **Evidence store** | SQLite WAL evidence with a hash chain, unkeyed SHA-256 fingerprints, `cyberwall evidence verify`, and Markdown/JSON reports. |
 | 🧰 | **Policy schema** | `cyberwall schema` prints the strict JSON Schema; the generated copy is in `schemas/policy.schema.json`. |
 
 Hermes hooks, session taint updates, tool drift monitoring, approvals, and the attack lab are not
@@ -103,6 +103,8 @@ Security tools that hide their limits are worse than none. So:
 - **It cannot prove a page is "safe"** or prevent a manipulated agent from acting.
 - **Path normalization is lexical.** The standalone evaluator does not resolve symlinks or enforce filesystem access.
 - **Evidence is tamper-evident, not tamper-proof.** The local chain detects changed rows and broken links, but cannot detect removal of its newest rows without an external checkpoint. A privileged user can rewrite the database and chain.
+- **Evidence hashes are not secret.** Paths, hosts, identifiers, and arguments use unkeyed SHA-256; common or low-entropy values can be guessed offline from the database.
+- **Evidence file permissions are platform dependent.** The database and SQLite sidecars are set to owner-only on POSIX. Windows ACLs are inherited from the parent directory and are not hardened by Cyberwall.
 - **The Hermes adapter is not implemented.** Hook paths, plugin isolation, lifecycle, and fail-closed behavior remain unverified or unresolved as documented in the contract spike.
 
 ## Planned work

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import sqlite3
+import stat
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 
@@ -96,6 +98,23 @@ def test_concurrent_writers_keep_chain_valid(tmp_path) -> None:
     finally:
         for store in stores:
             store.close()
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX file modes are not portable")
+def test_database_and_wal_sidecars_are_owner_only(tmp_path) -> None:
+    database = tmp_path / "evidence.db"
+    request = Request(tool="read_file", args={"path": "/workspace/file"})
+    with EvidenceStore(database) as store:
+        store.append(request, decide(request, _policy()), policy_sha256="9" * 64, mode="enforce")
+        for path in (database, tmp_path / "evidence.db-wal", tmp_path / "evidence.db-shm"):
+            assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+    existing_database = tmp_path / "existing.db"
+    with sqlite3.connect(existing_database) as connection:
+        connection.execute("CREATE TABLE existing (value TEXT)")
+    os.chmod(existing_database, 0o644)
+    with EvidenceStore(existing_database):
+        assert stat.S_IMODE(existing_database.stat().st_mode) == 0o600
 
 
 def test_tamper_detection_fails_after_internal_row_deletion(tmp_path) -> None:

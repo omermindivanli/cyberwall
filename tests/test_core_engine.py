@@ -5,6 +5,8 @@ import builtins
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
+from jsonschema import Draft202012Validator
+from pydantic import ValidationError
 
 from cyberwall.core.evaluator import decide
 from cyberwall.core.lint import lint_policy
@@ -227,6 +229,27 @@ def test_policy_loader_rejects_unknown_keys_and_unsafe_yaml() -> None:
     assert schema["properties"]["variables"]["type"] == "object"
 
 
+def test_json_schema_agrees_with_policy_model_for_modes_and_defaults() -> None:
+    schema = policy_json_schema()
+    Draft202012Validator.check_schema(schema)
+    validator = Draft202012Validator(schema)
+    cases = (
+        ({"version": 1}, True),
+        ({"version": 1, "mode": "enforce", "default": "deny"}, True),
+        ({"version": 1, "mode": "enforce", "default": "allow"}, False),
+        ({"version": 1, "default": "allow"}, False),
+        ({"version": 1, "mode": "audit", "default": "allow"}, True),
+        ({"version": 1, "mode": "unknown", "default": "deny"}, False),
+    )
+    for document, valid in cases:
+        assert validator.is_valid(document) is valid
+        if valid:
+            Policy.model_validate(document)
+        else:
+            with pytest.raises(ValidationError):
+                Policy.model_validate(document)
+
+
 def test_core_decision_does_not_open_files(monkeypatch: pytest.MonkeyPatch) -> None:
     configured = policy()
     request = Request(tool="web_extract", args={"url": "https://docs.example.com"})
@@ -327,6 +350,24 @@ def test_terminal_allowlist_matches_executable_and_each_argument() -> None:
     assert missing_command.decision == DecisionKind.DENY
 
 
+def test_attached_exec_capable_flag_is_blocked_but_benign_flag_is_allowed() -> None:
+    rule = Rule(
+        id="node-readonly",
+        effect=Effect.ALLOW,
+        tool="terminal",
+        executables=("node",),
+        argument_patterns=("--version", "--eval=*"),
+    )
+    benign = decide(Request(tool="terminal", args={"command": "node --version"}), policy((rule,)))
+    dangerous = decide(
+        Request(tool="terminal", args={"command": "node --eval=console.log(123)"}),
+        policy((rule,)),
+    )
+    assert benign.decision == DecisionKind.ALLOW
+    assert dangerous.decision == DecisionKind.DENY
+    assert dangerous.reason_code == "EXEC_CAPABLE_FLAG"
+
+
 def test_argument_patterns_cannot_approve_a_tool_by_name_alone() -> None:
     rule = Rule(id="terminal", effect=Effect.ALLOW, argument_patterns=("terminal",))
     assert (
@@ -384,6 +425,7 @@ def test_compiled_invariants_cover_exec_write_and_userinfo() -> None:
             "SELF_PROTECTION_WRITE",
         ),
         (Request(tool="terminal", args={"command": "python -c print(1)"}), "EXEC_CAPABLE_FLAG"),
+        (Request(tool="terminal", args={"command": "python -cprint(1)"}), "EXEC_CAPABLE_FLAG"),
         (Request(tool="web_extract", args={"url": "https://u:p@evil.invalid"}), "URL_USERINFO"),
     )
     for request, expected in cases:

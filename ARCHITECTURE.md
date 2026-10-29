@@ -102,7 +102,7 @@ Matching rules:
 - `paths`: glob (`**` supported) against the *normalized absolute* path. **Every** path-bearing argument is checked, and one violating path denies the call.
 - `hosts`: exact, or `*.suffix`. IP-literal hosts match only explicit CIDR entries.
 - No regexes anywhere. A tool with arguments the engine can't extract is allowed only by an explicit `unverified_args: allow` on its rule, and the evidence event is tagged `ARGS_UNVERIFIED`.
-- `terminal`: v0.1 supports `deny` (default in `strict`) or an **argv allowlist**: parse with `shlex`, reject any shell metacharacter unless a rule opts in, match the `argv[0]` basename against `executables`, match every remaining token against `argument_patterns`, and deny a built-in list of exec-capable flags (e.g. `-exec`, `-c`, `--eval`). A denylist is **never** claimed to be a boundary. See §15.
+- `terminal`: v0.1 supports `deny` (default in `strict`) or an **argv allowlist**: parse with `shlex`, reject any shell metacharacter unless a rule opts in, match the `argv[0]` basename against `executables`, match every remaining token against `argument_patterns`, and deny a built-in list of exec-capable flags including attached values (e.g. `-exec`, `-c`, `--eval`, `--eval=...`). A denylist is **never** claimed to be a boundary. See §15.
 
 ## 6. Policy format (v1, draft)
 
@@ -223,9 +223,11 @@ Compiled-in invariants (not removable by policy):
 
 Append-only SQLite (WAL) table; each row stores `prev_hash` and `hash = sha256(prev_hash ‖ canonical_json(event))`. `cyberwall evidence verify` recomputes the chain.
 
-Event fields: `event_id`, `correlation_id`, `ts`, `session_id`, `task_id`, `integration` (`hermes`), `tool`, `tool_class`, `normalized_paths[]`, `hosts[]`, `argv0`, `args_sha256`, `decision`, `would_block`, `rule_id`, `reason_code`, `policy_sha256`, `mode`, `taint_flags[]`, `approval_id?`, `outcome?` (`ok|error`, `duration_ms`), `flags[]` (`ARGS_UNVERIFIED`, `GUARD_ERROR`, …).
+Event fields: `event_id`, `correlation_id`, `ts`, `session_id`, `task_id`, `integration` (`standalone` currently; `hermes` after adapter integration), `tool`, `tool_class`, `normalized_paths[]`, `hosts[]`, `argv0`, `args_sha256`, `decision`, `would_block`, `rule_id`, `reason_code`, `policy_sha256`, `mode`, `taint_flags[]`, `approval_id?`, `outcome?` (`ok|error`, `duration_ms`), `flags[]` (`ARGS_UNVERIFIED`, `GUARD_ERROR`, …).
 
-Never stored: raw prompts, file contents, tool results, secrets, chain-of-thought. A CI test plants a canary secret in every input position and asserts it appears nowhere on disk.
+Never stored: raw prompts, file contents, tool results, secrets, chain-of-thought. A CI test plants a canary secret in every input position and asserts it appears nowhere on disk. Fingerprints and argument digests use unkeyed SHA-256: they hide literal values but do not prevent offline guessing of common or low-entropy values.
+
+On POSIX, the database and SQLite WAL/SHM files are set to owner-only mode (`0600`). On Windows, Cyberwall currently inherits ACLs from the parent directory.
 
 The log is **tamper-evident, not tamper-proof**. The local chain detects changed rows and broken links, but cannot detect removal of its newest rows without an external checkpoint. A privileged user can rewrite the database and chain. Signed receipts are a later option.
 

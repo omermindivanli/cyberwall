@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from pathlib import Path
+
+import pytest
 
 from cyberwall.cli import main
 from cyberwall.core.models import Decision, DecisionKind, Request, ToolClass
@@ -104,3 +107,24 @@ def test_evidence_report_and_verify_commands_are_redacted(tmp_path, capsys) -> N
 
     assert main(["evidence", "verify", "--database", str(database)]) == 0
     assert capsys.readouterr().out == "evidence chain: valid\n"
+
+
+@pytest.mark.parametrize("report_kind", ("last", "summary"))
+def test_reports_refuse_to_render_tampered_evidence(tmp_path, capsys, report_kind) -> None:
+    database = tmp_path / "evidence.db"
+    request = Request(tool="read_file", args={"path": "/workspace/file"})
+    decision = Decision(
+        decision=DecisionKind.DENY,
+        reason_code="DEFAULT_DENY",
+        tool_class=ToolClass.READ,
+    )
+    with EvidenceStore(database) as store:
+        store.append(request, decision, policy_sha256="a" * 64, mode="enforce")
+    with sqlite3.connect(database) as connection:
+        connection.execute("UPDATE events SET event_json = replace(event_json, 'DENY', 'ALLOW')")
+
+    result = main(["report", report_kind, "--database", str(database)])
+    captured = capsys.readouterr()
+    assert result == 1
+    assert captured.out == ""
+    assert "evidence chain is INVALID" in captured.err
