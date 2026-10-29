@@ -216,6 +216,11 @@ def test_policy_loader_rejects_unknown_keys_and_unsafe_yaml() -> None:
         load_policy_text("version: 1\nmode: enforce\nunknown: true\n")
     with pytest.raises(PolicyError):
         load_policy_text("!!python/object/apply:os.system ['echo unsafe']")
+    with pytest.raises(PolicyError):
+        load_policy_text(
+            "version: 1\nmode: enforce\ndefault: deny\nrules:\n"
+            "  - id: memory\n    effect: allow\n    unverified_args: alow\n"
+        )
     assert "additionalProperties" in str(policy_json_schema())
     schema = policy_json_schema()
     assert schema["properties"]["tools"]["type"] == "object"

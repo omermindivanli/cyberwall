@@ -84,7 +84,7 @@ class Rule(FrozenModel):
     hosts: tuple[str, ...] = ()
     executables: tuple[str, ...] = ()
     when: RuleWhen | None = None
-    unverified_args: str | None = None
+    unverified_args: Literal["allow"] | None = None
     allow_shell_metacharacters: bool = False
     argument_patterns: tuple[str, ...] = ()
 
