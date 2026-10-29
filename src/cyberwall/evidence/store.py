@@ -57,7 +57,7 @@ def _fingerprint_identifier(value: str) -> str:
 
 
 def _event_payload(
-    request: Request, decision: Decision, policy_sha256: str, mode: str
+    request: Request, decision: Decision, policy_sha256: str, mode: str, integration: str
 ) -> dict[str, Any]:
     if mode not in {"audit", "enforce"}:
         raise ValueError("mode must be audit or enforce")
@@ -72,7 +72,7 @@ def _event_payload(
         "ts": now,
         "session_id": _fingerprint_identifier(request.session_id),
         "task_id": _fingerprint_identifier(request.task_id),
-        "integration": "standalone",
+        "integration": integration,
         "tool": request.tool if decision.tool_class.value != "unknown" else "unknown",
         "tool_class": decision.tool_class.value,
         "normalized_paths": _fingerprint(decision.normalized_paths),
@@ -115,9 +115,12 @@ class EvidenceStore:
         *,
         policy_sha256: str,
         mode: str,
+        integration: str = "standalone",
     ) -> str:
         """Append a redacted decision event and return its event ID."""
-        event = _event_payload(request, decision, policy_sha256, mode)
+        if integration not in {"standalone", "hermes"}:
+            raise ValueError("unsupported evidence integration")
+        event = _event_payload(request, decision, policy_sha256, mode, integration)
         encoded = _canonical(event).decode("ascii")
         with self._lock:
             cursor = self._connection.cursor()
@@ -181,10 +184,17 @@ def append_with_failure_policy(
     policy: Policy,
     *,
     policy_sha256: str,
+    integration: str = "standalone",
 ) -> Decision:
     """Persist a decision or apply the configured evidence-failure policy fail-closed."""
     try:
-        store.append(request, decision, policy_sha256=policy_sha256, mode=policy.mode)
+        store.append(
+            request,
+            decision,
+            policy_sha256=policy_sha256,
+            mode=policy.mode,
+            integration=integration,
+        )
         return decision
     except Exception:
         if policy.mode == "audit":

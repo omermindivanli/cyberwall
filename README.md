@@ -16,13 +16,13 @@
 </p>
 
 > [!WARNING]
-> **Early development, not a production security boundary.** Cyberwall currently evaluates standalone requests and records local evidence. It does not intercept Hermes or any other agent runtime. The integration spike found unresolved Hermes hook contract and argument-mutation risks; see [`docs/hermes-contract.md`](docs/hermes-contract.md). Do not rely on this package to protect a system.
+> **Early development; not production ready.** Cyberwall has a local Hermes plugin adapter, but it depends on a proposed upstream `pre_tool_call_final` hook that is not merged or released. Docker-based pinned-runtime tests, approval workflows, execution-path coverage, and operational hardening remain incomplete. See [`docs/hermes-contract.md`](docs/hermes-contract.md). Do not rely on this package as a security boundary.
 
 ---
 
 ## The problem
 
-Agents can propose high-impact tool actions. This project explores deterministic policy evaluation outside the model's reasoning, with a pure core that can be tested independently from an eventual runtime adapter.
+Agents can propose high-impact tool actions. Cyberwall evaluates Hermes' final tool arguments against deterministic local policy rules and records redacted decision evidence. The pure evaluator remains independent of the runtime adapter.
 
 ## Available in this checkout
 
@@ -32,10 +32,12 @@ Agents can propose high-impact tool actions. This project explores deterministic
 | 🧹 | **Policy lint** | `cyberwall policy lint` reports structurally broad allows and selector conflicts. |
 | 🧾 | **Evidence store** | SQLite WAL evidence with a hash chain, unkeyed SHA-256 fingerprints, `cyberwall evidence verify`, and Markdown/JSON reports. |
 | 🧰 | **Policy schema** | `cyberwall schema` prints the strict JSON Schema; the generated copy is in `schemas/policy.schema.json`. |
+| 🔌 | **Hermes adapter (experimental)** | A proposed `pre_tool_call_final` hook checks final arguments, blocks denied or approval-required calls, and records evidence. It requires the pending Hermes upstream hook change. |
 
-Hermes hooks, session taint updates, tool drift monitoring, approvals, and the attack lab are not
-implemented yet. The evaluator can be exercised locally, but this checkout does not intercept
-Hermes tool calls and must not be used as a production security boundary.
+Session taint updates, tool drift monitoring, the human approval workflow, and the attack lab are
+not implemented. The Hermes adapter is not validated against a pinned runtime and must not be
+treated as production protection. Approval-required policy decisions currently block rather than
+prompt an operator.
 
 ## Current capabilities
 

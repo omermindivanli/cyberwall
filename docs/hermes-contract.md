@@ -1,85 +1,49 @@
-# Hermes integration contract spike
+# Hermes integration contract
 
-**Status:** paused before adapter code because the observed contract conflicts with the supplied
-architecture and exposes a check/use gap between callbacks. This is a source inspection plus a
-CLI capability check, not a completed Docker contract test.
+## Integration decision
 
-## Environment inspected
+Cyberwall's Hermes adapter registers `pre_tool_call_final`. This proposed upstream hook runs
+after ordinary `pre_tool_call` argument modifiers and checks a detached copy of the exact
+arguments Hermes is about to dispatch. It honors only `block`; approval and argument mutation are
+ignored. Cyberwall treats `DENY` and `REQUIRE_APPROVAL` as blocks because its human-only approval
+store and interface are not implemented yet.
 
-- Installed Hermes reports `Hermes Agent v0.22.5 (2026.9.24) · stable · local`.
-- Installed source revision: `bf0203a794a07aac3ff764972ab9087baa4e4f4e` (2026-10-22).
-- The installed source is a local git checkout at `/Users/omermindivanli/.hermes/hermes-agent`.
-- `hermes --version`, `hermes plugins --help`, `hermes plugins doctor --help`,
-  `hermes plugins validate --help`, and `hermes hooks test --help` were run.
-- Docker is unavailable in this environment (`docker: command not found`). No live agent or model
-  was started, and no real Hermes profile or credentials were used.
+The upstream contract change is in the isolated Hermes worktree at commit
+`4b78de1c44` on branch `cyberwall-secure-args`. It has not been merged or released. The plugin
+cannot be enabled safely on Hermes versions that do not implement `pre_tool_call_final`; catalog
+submission must wait for Hermes maintainers to accept and release that hook.
 
-## Findings against ARCHITECTURE §8.2
+## Evidence collected
 
-1. **Hook names and argument shape — source verified, registry shape partial.** The installed
-   `hermes_cli.plugins.py` registers `pre_tool_call`, `post_tool_call`, and
-   `transform_tool_result` in `VALID_HOOKS`. The dispatch payload includes `tool_name`, `args`,
-   `task_id`, `session_id`, `tool_call_id`, `turn_id`, `api_request_id`, and
-   `middleware_trace`. `PluginContext.register_hook()` is the registration API. A full snapshot of
-   current built-in tool names and schemas was not taken.
-2. **Execution paths — source verified for two call sites; coverage remains incomplete.** The
-   installed `agent/agent_runtime_helpers.py` inline path and `agent/tool_executor.py` path both
-   call `_dispatch_pre_tool_call_hooks` before dispatch. The executor path then calls the registry
-   with `skip_pre_tool_call_hook=True`, avoiding its own duplicate hook call. MCP, `delegate_task`
-   children, `execute_code`, cron, gateway surfaces, and direct `ctx.dispatch_tool` coverage were
-   not experimentally verified. Treat them as unsupported until contract tests prove otherwise.
-3. **Model invocation of slash commands — not experimentally verified.** `PluginContext.register_command`
-   registers an in-session command handler, while `register_tool` registers model-callable tools.
-   Source inspection did not establish that the model cannot cause command dispatch through every
-   Hermes surface. Do not use slash commands for Cyberwall approval until verified.
-4. **Disabled, failed, or raising plugin — source inspected; end-to-end test not run.** Plugins are
-   opt-in. `_load_plugin_scoped()` records a plugin load error and lets discovery continue if
-   import or `register(ctx)` fails. The `pre_tool_call` hook dispatcher converts callback exceptions
-   and timeouts into a block directive. However, the outer wrappers in
-   `agent_runtime_helpers._pre_tool_block_message()` and `tool_executor._pre_tool_block()` catch
-   dispatcher exceptions and return no block. `safe_worker_enabled()` also returns an empty hook
-   list. An external `doctor`/launcher check is still required to detect an absent guard.
-5. **Argument mutation / TOCTOU — source inspection found a material risk.** `PluginDispatchMixin`
-   passes the same `args` object in the callback payload and invokes multiple callbacks in sequence.
-   A plugin callback can mutate that dictionary in place; a later callback can therefore see
-   arguments different from those the Cyberwall callback evaluated. Hermes also accepts a
-   `{"action":"modify","args":...}` directive that changes arguments before dispatch. No
-   isolation or post-hook argument identity check was observed. This prevents claiming that the
-   Python hook alone securely binds the checked request to the executed request.
-6. **Session identity — partial source facts, lifecycle unverified.** `pre_tool_call` receives both
-   `task_id` and `session_id`. Their stability across `/new`, resume, and subagents was not tested.
+- Current upstream Hermes `main` inspected at `088f657ecf77674c7b8e2ededf4e3576d82e042c`.
+- The Hermes implementation registers callbacks through `ctx.register_hook()` and exposes hook
+  payload fields including `tool_name`, `args`, `task_id`, `session_id`, `tool_call_id`, `turn_id`,
+  `api_request_id`, and `middleware_trace`.
+- Current `pre_tool_call` allows `block`, `approve`, and `modify`; its approval path can use
+  automatic approval settings, so Cyberwall does not use it for human-only approval.
+- Agent inline and managed tool-executor paths call the same `_dispatch_pre_tool_call_hooks`
+  helper. In the proposed change, final policy runs there after ordinary modifiers and before tool
+  execution.
+- The proposed final hook isolates the payload for each callback. Exceptions and timeouts produce
+  a block, and wrapper-level dispatcher errors also block.
+- Focused upstream verification: `tests/hermes_cli/test_plugins.py` passed (89 tests); after adding
+  the handler-not-invoked regression, the focused policy tests passed (4 tests).
 
-## Direct contradictions and decisions needed
+## Not yet verified
 
-The supplied ARCHITECTURE §8.1 says `block` is the only veto and there is no approval return. The
-installed Hermes explicitly accepts `{"action":"approve","message":...,"rule_key":...}` and
-routes it to `request_tool_approval`. That gate is not unconditionally human-only: source paths in
-`tools/approval.py` show it can auto-approve in YOLO mode, from existing session/permanent allowlist
-entries, and according to `approvals.cron_mode`. `rule_key` determines the `[a]lways` allowlist
-grain. The hook is therefore not limited to the documented block-only contract, and the native
-approval path cannot satisfy Cyberwall's human-only, single-use approval invariant without further
-Hermes configuration or a separate approval mechanism. The product design must choose whether to
-support a tightly constrained native gate or retain a Cyberwall-owned approval flow and ignore the
-native action.
+Docker was unavailable during this work. No pinned Hermes container, live Hermes profile,
+credential, model, or gateway was used. The integration tests in this repository exercise the
+adapter with a fake plugin context; they do not prove installation or runtime behavior in Hermes.
+The following execution surfaces remain unverified: MCP tools, child agents, `execute_code`, cron,
+gateway sessions, direct `ctx.dispatch_tool`, plugin-disabled behavior, and session identity across
+new/resumed sessions. These paths must remain unsupported until pinned-runtime contract tests cover
+them.
 
-The architecture requires `decide()` to check the arguments that the tool will execute. The
-installed Python plugin dispatcher shares mutable arguments among callbacks, so that binding cannot
-be established from one callback alone. The maintainer must decide whether Cyberwall's threat model
-excludes other in-process plugins and documents this as a hard limit, or whether the project will
-require an upstream Hermes change / an out-of-process enforcement boundary before claiming coverage.
+The current plugin manifest declares the proposed hook, but `hermes plugins validate` cannot pass
+against Hermes main until that hook is accepted upstream. No catalog entry or production-readiness
+claim is warranted yet.
 
-Per `AGENTS.md`, implementation stopped here. Do not add Hermes plugin code until these design
-decisions are resolved and the required pinned-runtime experiments can run.
+## References
 
-## Official distribution path observed
-
-The installed Hermes docs describe a human-reviewed catalog in `NousResearch/hermes-agent`.
-Admission requires a loadable public plugin repository, an exact 40-character commit pin, and a PR
-adding `plugin-catalog/<name>.yaml`; catalog CI runs `hermes plugins validate` against that pin.
-There is no self-serve registration. The plugin is not ready for catalog submission: it has no
-Hermes adapter and has not passed `hermes plugins validate`.
-
-References: [Hermes plugin hook implementation](https://github.com/NousResearch/hermes-agent/blob/main/hermes_cli/plugins.py),
-[Hermes hook dispatch implementation](https://github.com/NousResearch/hermes-agent/blob/main/hermes_cli/plugins_dispatch.py),
-[Hermes approval implementation](https://github.com/NousResearch/hermes-agent/blob/main/tools/approval.py),
-[Hermes plugin catalog submission guide](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/developer-guide/plugins/catalog-submission.md).
+- [Hermes plugin hooks](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/features/hooks.md)
+- [Hermes plugin catalog submission](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/developer-guide/plugins/catalog-submission.md)

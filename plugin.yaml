@@ -1,0 +1,16 @@
+name: cyberwall
+version: "0.1.0"
+description: "Deterministic local policy checks for final Hermes tool arguments."
+author: "Cyberwall contributors"
+provides_hooks:
+  - pre_tool_call_final
+config_schema:
+  type: object
+  properties:
+    policy_path:
+      type: string
+      description: Absolute or home-relative path to the Cyberwall YAML policy.
+    evidence_path:
+      type: string
+      description: Absolute or home-relative path to the local evidence database.
+  additionalProperties: false
