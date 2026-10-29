@@ -36,6 +36,7 @@ def test_canary_secret_never_reaches_sqlite_bytes(tmp_path) -> None:
     with EvidenceStore(database) as store:
         store.append(request, decision, policy_sha256="a" * 64, mode="enforce")
         assert store.verify()
+        assert store.events()[0]["integration"] == "standalone"
         persisted_bytes = b"".join(
             path.read_bytes() for path in tmp_path.iterdir() if path.is_file()
         )

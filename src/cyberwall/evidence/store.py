@@ -44,7 +44,7 @@ def _event_payload(
         "ts": now,
         "session_id": _fingerprint_identifier(request.session_id),
         "task_id": _fingerprint_identifier(request.task_id),
-        "integration": "hermes",
+        "integration": "standalone",
         "tool": request.tool if decision.tool_class.value != "unknown" else "unknown",
         "tool_class": decision.tool_class.value,
         "normalized_paths": _fingerprint(decision.normalized_paths),
