@@ -53,10 +53,14 @@ CLI capability check, not a completed Docker contract test.
 
 The supplied ARCHITECTURE §8.1 says `block` is the only veto and there is no approval return. The
 installed Hermes explicitly accepts `{"action":"approve","message":...,"rule_key":...}` and
-routes it to a human-approval gate. The hook is therefore not limited to the documented block-only
-contract. The product design must choose whether to use Hermes' native human gate (then verify its
-scope, persistence, and single-use semantics) or retain a Cyberwall-owned approval flow and ignore
-the native action.
+routes it to `request_tool_approval`. That gate is not unconditionally human-only: source paths in
+`tools/approval.py` show it can auto-approve in YOLO mode, from existing session/permanent allowlist
+entries, and according to `approvals.cron_mode`. `rule_key` determines the `[a]lways` allowlist
+grain. The hook is therefore not limited to the documented block-only contract, and the native
+approval path cannot satisfy Cyberwall's human-only, single-use approval invariant without further
+Hermes configuration or a separate approval mechanism. The product design must choose whether to
+support a tightly constrained native gate or retain a Cyberwall-owned approval flow and ignore the
+native action.
 
 The architecture requires `decide()` to check the arguments that the tool will execute. The
 installed Python plugin dispatcher shares mutable arguments among callbacks, so that binding cannot
@@ -77,4 +81,5 @@ Hermes adapter and has not passed `hermes plugins validate`.
 
 References: [Hermes plugin hook implementation](https://github.com/NousResearch/hermes-agent/blob/main/hermes_cli/plugins.py),
 [Hermes hook dispatch implementation](https://github.com/NousResearch/hermes-agent/blob/main/hermes_cli/plugins_dispatch.py),
+[Hermes approval implementation](https://github.com/NousResearch/hermes-agent/blob/main/tools/approval.py),
 [Hermes plugin catalog submission guide](https://github.com/NousResearch/hermes-agent/blob/main/website/docs/developer-guide/plugins/catalog-submission.md).
