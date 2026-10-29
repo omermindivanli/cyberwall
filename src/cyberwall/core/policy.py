@@ -22,8 +22,12 @@ def load_policy_text(text: str) -> Policy:
         if not isinstance(data, dict):
             raise PolicyError("policy root must be a mapping")
         return Policy.model_validate(data)
-    except (yaml.YAMLError, ValidationError) as error:
-        raise PolicyError(str(error)) from error
+    except yaml.YAMLError as error:
+        mark = getattr(error, "problem_mark", None)
+        location = f" at line {mark.line + 1}, column {mark.column + 1}" if mark else ""
+        raise PolicyError(f"invalid YAML{location}") from None
+    except ValidationError:
+        raise PolicyError("policy fields or values do not match the schema") from None
 
 
 def policy_json_schema() -> dict[str, Any]:

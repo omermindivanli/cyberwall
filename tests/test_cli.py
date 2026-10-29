@@ -18,6 +18,46 @@ def test_eval_command_prints_deterministic_decision_json(tmp_path, capsys) -> No
     assert output["reason_code"] == "DEFAULT_DENY"
 
 
+def test_invalid_request_does_not_echo_raw_arguments(tmp_path, capsys) -> None:
+    secret = "CANARY-CLI-REQUEST-SECRET"
+    result = main(
+        [
+            "eval",
+            "--policy",
+            str(tmp_path / "policy.yaml"),
+            "--tool",
+            "read_file",
+            "--args",
+            f'{{"secret":"{secret}","not_json":NaN}}',
+        ]
+    )
+    captured = capsys.readouterr()
+    assert result == 2
+    assert secret not in captured.out + captured.err
+
+
+def test_invalid_policy_does_not_echo_raw_values(tmp_path, capsys) -> None:
+    secret = "CANARY-CLI-POLICY-SECRET"
+    policy_path = tmp_path / "policy.yaml"
+    policy_path.write_text(f"version: 1\nmode: enforce\nsecret: {secret}\n", encoding="utf-8")
+    result = main(["eval", "--policy", str(policy_path), "--tool", "read_file", "--args", "{}"])
+    captured = capsys.readouterr()
+    assert result == 2
+    assert secret not in captured.out + captured.err
+
+
+def test_malformed_yaml_does_not_echo_raw_values(tmp_path, capsys) -> None:
+    secret = "CANARY-MALFORMED-YAML-SECRET"
+    policy_path = tmp_path / "policy.yaml"
+    policy_path.write_text(
+        f"version: 1\nsecret: {secret}\n  invalid: indentation\n", encoding="utf-8"
+    )
+    result = main(["eval", "--policy", str(policy_path), "--tool", "read_file", "--args", "{}"])
+    captured = capsys.readouterr()
+    assert result == 2
+    assert secret not in captured.out + captured.err
+
+
 def test_policy_lint_warns_about_overbroad_allow(tmp_path, capsys) -> None:
     policy_path = tmp_path / "policy.yaml"
     policy_path.write_text(

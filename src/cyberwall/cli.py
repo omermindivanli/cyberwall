@@ -100,8 +100,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             session_id=args.session_id,
             task_id=args.task_id,
         )
-    except (json.JSONDecodeError, ValidationError, ValueError) as error:
-        print(f"cyberwall: invalid request: {error}", file=sys.stderr)
+    except json.JSONDecodeError as error:
+        print(
+            f"cyberwall: invalid request JSON at line {error.lineno}, column {error.colno}",
+            file=sys.stderr,
+        )
+        return 2
+    except (ValidationError, ValueError):
+        print("cyberwall: invalid request fields or arguments", file=sys.stderr)
         return 2
     result = decide(request, policy, SessionState())
     print(json.dumps(result.model_dump(mode="json"), sort_keys=True))
