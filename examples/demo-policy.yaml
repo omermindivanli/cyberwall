@@ -1,0 +1,14 @@
+version: 1
+mode: enforce
+default: deny
+variables:
+  WORKSPACE: /tmp/cyberwall-demo/workspace
+tools:
+  read_file:
+    class: read
+rules:
+  - id: allow-demo-workspace-reads
+    effect: allow
+    tool: read_file
+    paths:
+      - /tmp/cyberwall-demo/workspace/**
